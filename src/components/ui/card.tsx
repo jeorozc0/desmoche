@@ -1,6 +1,6 @@
 const Card = ({ suit = "♠", number = "A", color = "black" }) => {
   return (
-    <div className="w-full h-full aspect-[3/4] hover:scale-110">
+    <div className="w-full h-full aspect-[3/4]">
       <svg
         viewBox="0 0 240 336"
         xmlns="http://www.w3.org/2000/svg"
@@ -45,5 +45,4 @@ const Card = ({ suit = "♠", number = "A", color = "black" }) => {
     </div>
   );
 };
-
 export default Card;

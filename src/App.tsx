@@ -1,4 +1,4 @@
-import GameTable from "./components/table";
+import GameTable from "./components/ui/game-table";
 
 function App() {
   return <GameTable />;
