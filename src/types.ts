@@ -1,6 +1,13 @@
+export interface CardData {
+  suit: string;
+  number: string;
+  color: "red" | "black";
+}
+
 export interface Player {
   name: string;
-  hand?: string[];
+  hand?: CardData[];
+  ready?: boolean;
 }
 
 export interface GameState {
@@ -14,14 +21,4 @@ export interface GameState {
 export interface Message {
   type: "system" | "error" | "game";
   text: string;
-}
-
-export interface GameMessage {
-  action: string;
-  message?: string;
-  player?: string;
-  players?: Player[];
-  dealer?: string;
-  turn_order?: string[];
-  error?: string;
 }

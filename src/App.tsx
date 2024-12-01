@@ -1,7 +1,7 @@
-import GameTable from "./components/ui/game-table";
+import DesmocheGame from "./components/desmoche-game";
 
 function App() {
-  return <GameTable />;
+  return <DesmocheGame />;
 }
 
 export default App;
