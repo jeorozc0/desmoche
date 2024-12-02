@@ -1,6 +1,27 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { GameState, Message, Player, CardData } from '../types';
+import { GameState, Message, CardData, GameSession } from '../types';
 import { convertServerCards } from '../utils/card-helpers';
+
+interface BaseResponse {
+  event: string;
+  message: string;
+}
+
+interface SessionResponse extends BaseResponse {
+  data: {
+    session: GameSession;
+  };
+}
+
+interface PlayerReadyResponse extends BaseResponse {
+  data: {
+    player: {
+      is_ready: boolean;
+    };
+  };
+}
+
+type ServerResponse = SessionResponse | PlayerReadyResponse;
 
 interface WebSocketHookResult {
   connected: boolean;
@@ -8,7 +29,7 @@ interface WebSocketHookResult {
   gameState: GameState;
   playerHand: CardData[];
   connect: (gameId: string, playerName: string) => void;
-  sendMessage: (action: string, data?: any) => void;
+  sendMessage: (event: string, data?: any) => void;
   host: string;
 }
 
@@ -22,141 +43,172 @@ export function useWebSocket(): WebSocketHookResult {
     players: [],
     currentTurn: "",
     phase: "waiting",
+    state: "lobby"
   });
 
   const playerNameRef = useRef<string>("");
 
+  const isSessionResponse = (data: any): data is SessionResponse => {
+    return 'data' in data && 'session' in data.data;
+  };
+
   const handleWebSocketMessage = useCallback((event: MessageEvent) => {
-    const data = JSON.parse(event.data);
+    const data: ServerResponse = JSON.parse(event.data);
     console.log("Received message:", data);
 
-    switch (data.action || data.event) {
-      case "player_joined": {
-        const playerObjects = data.players.map((name: string) => ({
-          name,
-          isReady: false
-        }));
+    // Always add the message to messages list if it exists
+    if (data.message) {
+      setMessages(prev => [
+        ...prev,
+        {
+          type: data.event === "error" ? "error" : "system",
+          text: data.message
+        }
+      ]);
+    }
 
-        setHost(data.host);
-        setGameState((prev) => ({
-          ...prev,
-          players: playerObjects,
-          phase: data.phase || prev.phase,
-        }));
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: "system",
-            text: data.message || `${data.player} joined the game`,
-          },
-        ]);
+    switch (data.event) {
+      case "player_joined": {
+        if (isSessionResponse(data)) {
+          const session = data.data.session;
+          const playersList = Object.values(session.players).map(player => ({
+            name: player.name,
+            isReady: player.is_ready,
+            hand: player.hand.cards.length > 0 ? convertServerCards(player.hand.cards) : undefined
+          }));
+
+          setHost(session.host);
+          setGameState(prev => ({
+            ...prev,
+            players: playersList,
+            phase: session.phase,
+            state: session.state
+          }));
+        }
         break;
       }
 
       case "player_ready": {
-        setGameState((prev) => ({
-          ...prev,
-          players: prev.players.map(p =>
-            p.name === data.player
-              ? { ...p, isReady: true }
-              : p
-          )
-        }));
-        setMessages((prev) => [
-          ...prev,
-          { type: "system", text: data.message }
-        ]);
+        if ('data' in data && 'player' in data.data) {
+          const playerData = data.data.player;
+          setGameState(prev => ({
+            ...prev,
+            players: prev.players.map(p =>
+              p.name === playerNameRef.current
+                ? { ...p, isReady: playerData.is_ready }
+                : p
+            )
+          }));
+        }
         break;
       }
 
       case "player_not_ready": {
-        setGameState((prev) => ({
-          ...prev,
-          players: prev.players.map(p =>
-            p.name === data.player
-              ? { ...p, isReady: false }
-              : p
-          )
-        }));
-        setMessages((prev) => [
-          ...prev,
-          { type: "system", text: data.message }
-        ]);
+        if ('data' in data && 'player' in data.data) {
+          const playerData = data.data.player;
+          setGameState(prev => ({
+            ...prev,
+            players: prev.players.map(p =>
+              p.name === playerNameRef.current
+                ? { ...p, isReady: playerData.is_ready }
+                : p
+            )
+          }));
+        }
         break;
       }
 
       case "game_started": {
-        const players = data.players.map((p: any) => ({
-          name: p.name,
-          hand: p.hand ? convertServerCards(p.hand) : undefined,
-          isReady: true
-        }));
+        if (isSessionResponse(data)) {
+          const session = data.data.session;
+          const players = Object.values(session.players).map(player => ({
+            name: player.name,
+            isReady: player.is_ready,
+            hand: convertServerCards(player.hand.cards)
+          }));
 
-        const currentPlayer = players.find(
-          (p: Player) => p.name === playerNameRef.current
-        );
-        if (currentPlayer?.hand) {
-          setPlayerHand(currentPlayer.hand);
+          // Set initial player hand
+          const currentPlayer = session.players[playerNameRef.current];
+          if (currentPlayer?.hand?.cards) {
+            setPlayerHand(convertServerCards(currentPlayer.hand.cards));
+          }
+
+          setGameState(prev => ({
+            ...prev,
+            players,
+            phase: session.phase,
+            state: session.state,
+            currentTurn: session.current_turn_player.name
+          }));
         }
-
-        setGameState((prev) => ({
-          ...prev,
-          players,
-          phase: "playing",
-          dealer: data.dealer,
-          turnOrder: data.turn_order,
-        }));
-        setMessages((prev) => [
-          ...prev,
-          { type: "system", text: "Game has started!" },
-        ]);
         break;
       }
 
-      case "player_left":
-        setGameState((prev) => ({
-          ...prev,
-          players: prev.players.filter((p) => p.name !== data.player),
-        }));
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: "system",
-            text: data.message || `${data.player} left the game`,
-          },
-        ]);
-        break;
+      case "card_exchange_complete": {
+        if (isSessionResponse(data)) {
+          const session = data.data.session;
 
-      case "error":
-        setMessages((prev) => [
-          ...prev,
-          { type: "error", text: data.message },
-        ]);
-        break;
+          // Update all players' hands
+          const players = Object.values(session.players).map(player => ({
+            name: player.name,
+            isReady: player.is_ready,
+            hand: convertServerCards(player.hand.cards)
+          }));
 
-      default:
-        if (data.message) {
-          setMessages((prev) => [
+          // Update current player's hand
+          const currentPlayer = session.players[playerNameRef.current];
+          if (currentPlayer?.hand?.cards) {
+            setPlayerHand(convertServerCards(currentPlayer.hand.cards));
+          }
+
+          setGameState(prev => ({
             ...prev,
-            { type: "game", text: data.message },
-          ]);
+            players,
+            phase: session.phase
+          }));
         }
+        break;
+      }
+      case "no_automatic_win": {
+        if (isSessionResponse(data)) {
+          const session = data.data.session;
+          setGameState(prev => ({
+            ...prev,
+            phase: session.phase
+          }));
+        }
+        break;
+      }
+
+      case "player_left": {
+        if (isSessionResponse(data)) {
+          const session = data.data.session;
+          setGameState(prev => ({
+            ...prev,
+            players: Object.values(session.players).map(player => ({
+              name: player.name,
+              isReady: player.is_ready,
+              hand: convertServerCards(player.hand.cards)
+            }))
+          }));
+        }
+        break;
+      }
     }
   }, []);
 
   const connect = useCallback((gameId: string, playerName: string) => {
     if (!gameId || !playerName) return;
 
-    // Store player name for reference in message handling
     playerNameRef.current = playerName;
 
     const ws = new WebSocket(`ws://localhost:8080/game/${gameId}/${playerName}`);
 
     ws.onopen = () => {
       setConnected(true);
-      setMessages((prev) => [
+      setMessages(prev => [
         ...prev,
-        { type: "system", text: "Connected to game server" },
+        { type: "system", text: "Connected to game server" }
       ]);
     };
 
@@ -164,34 +216,38 @@ export function useWebSocket(): WebSocketHookResult {
 
     ws.onclose = () => {
       setConnected(false);
-      setMessages((prev) => [
+      setMessages(prev => [
         ...prev,
-        { type: "system", text: "Disconnected from game server" },
+        { type: "system", text: "Disconnected from game server" }
       ]);
-      setGameState((prev) => ({ ...prev, players: [] }));
+      setGameState(prev => ({
+        ...prev,
+        players: [],
+        phase: "waiting",
+        state: "lobby"
+      }));
       setPlayerHand([]);
     };
 
     ws.onerror = (error) => {
       console.error('WebSocket error:', error);
-      setMessages((prev) => [
+      setMessages(prev => [
         ...prev,
-        { type: "error", text: "Connection error occurred" },
+        { type: "error", text: "Connection error occurred" }
       ]);
     };
 
     setSocket(ws);
   }, [handleWebSocketMessage]);
 
-  const sendMessage = useCallback((action: string, data = {}) => {
+  const sendMessage = useCallback((event: string, data = {}) => {
     if (socket?.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ action, ...data }));
+      socket.send(JSON.stringify({ event, ...data }));
     } else {
       console.warn('WebSocket is not connected');
     }
   }, [socket]);
 
-  // Cleanup WebSocket connection when component unmounts
   useEffect(() => {
     return () => {
       if (socket) {

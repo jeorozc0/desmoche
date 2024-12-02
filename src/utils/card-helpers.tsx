@@ -1,4 +1,4 @@
-import { CardData } from "../types";
+import { CardData, ServerCard } from "../types";
 
 export function getSuitSymbol(suitName: string): string {
   switch (suitName) {
@@ -6,17 +6,24 @@ export function getSuitSymbol(suitName: string): string {
     case "Diamonds": return "♦";
     case "Clubs": return "♣";
     case "Spades": return "♠";
-    default: return "♠";
+    default: return suitName;
   }
 }
 
-export function convertServerCards(cards: string[]): CardData[] {
-  return cards.map((cardStr) => {
-    const [number, , suit] = cardStr.split(" ");
-    return {
-      number,
-      suit: getSuitSymbol(suit),
-      color: suit === "Hearts" || suit === "Diamonds" ? "red" : "black",
-    };
-  });
+export function getSuitName(symbol: string): string {
+  switch (symbol) {
+    case "♥": return "Hearts";
+    case "♦": return "Diamonds";
+    case "♣": return "Clubs";
+    case "♠": return "Spades";
+    default: return symbol;
+  }
+}
+
+export function convertServerCards(cards: ServerCard[]): CardData[] {
+  return cards.map((card) => ({
+    suit: getSuitSymbol(card.suit),
+    number: card.rank,
+    color: card.color.toLowerCase() as "red" | "black"
+  }));
 }
