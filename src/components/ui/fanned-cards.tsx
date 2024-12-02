@@ -1,31 +1,27 @@
 import React, { useState, useEffect } from "react";
 import Card from "./card";
-
-interface CardData {
-  suit: string;
-  number: string;
-  color: "red" | "black";
-}
+import { CardData } from "../../types";
 
 interface FannedCardsProps {
   cards: CardData[];
   faceDown?: boolean;
   onCardClick?: (card: CardData, index: number) => void;
   removedCardIndex?: number;
+  selectedCardIndices?: number[];  // Added this prop to the interface
 }
 
 const FannedCards: React.FC<FannedCardsProps> = ({
   cards,
   faceDown = false,
   onCardClick,
-  removedCardIndex
+  removedCardIndex,
+  selectedCardIndices = []
 }) => {
   const [isHandHovered, setIsHandHovered] = useState(false);
   const [animatingCards, setAnimatingCards] = useState<CardData[]>(cards);
   const baseSpacing = 25;
   const expandedSpacing = 60;
 
-  // Update animating cards when the cards prop changes
   useEffect(() => {
     setAnimatingCards(cards);
   }, [cards]);
@@ -40,8 +36,9 @@ const FannedCards: React.FC<FannedCardsProps> = ({
         const spacing = isHandHovered ? expandedSpacing : baseSpacing;
         const translateX = (index - (animatingCards.length - 1) / 2) * spacing;
         const rotation = (index - (animatingCards.length - 1) / 2) * 3;
-
         const isRemoving = index === removedCardIndex;
+        const isSelected = selectedCardIndices.includes(index);
+
         const style = {
           transform: `translateX(${translateX}px) rotate(${rotation}deg) ${isRemoving ? 'scale(0) translateY(-100px)' : ''
             }`,
@@ -55,7 +52,8 @@ const FannedCards: React.FC<FannedCardsProps> = ({
             key={`${card.suit}-${card.number}-${index}`}
             className={`absolute left-1/2 bottom-0 -translate-x-1/2
                        w-32 h-48 rounded-lg 
-                       ${!faceDown && !isRemoving ? "cursor-pointer hover:-translate-y-8" : ""}
+                       ${!faceDown && !isRemoving ? "hover:-translate-y-8" : ""}
+                       ${isSelected ? "ring-2 ring-yellow-400" : ""}
                        transition-all duration-200 ease-out`}
             style={style}
             onClick={() => !faceDown && !isRemoving && onCardClick?.(card, index)}

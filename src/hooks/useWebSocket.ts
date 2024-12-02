@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { GameState, Message, CardData, GameSession } from '../types';
-import { convertServerCards } from '../utils/card-helpers';
+import { convertServerCards, getSuitSymbol } from '../utils/card-helpers';
 
 interface BaseResponse {
   event: string;
@@ -9,6 +9,8 @@ interface BaseResponse {
 
 interface SessionResponse extends BaseResponse {
   data: {
+    discard_pile: CardData[]
+    card_drawn: any;
     session: GameSession;
   };
 }
@@ -50,6 +52,10 @@ export function useWebSocket(): WebSocketHookResult {
 
   const isSessionResponse = (data: any): data is SessionResponse => {
     return 'data' in data && 'session' in data.data;
+  };
+
+  const isDataResponse = (data: any): data is SessionResponse => {
+    return 'data' in data;
   };
 
   const handleWebSocketMessage = useCallback((event: MessageEvent) => {
@@ -175,6 +181,40 @@ export function useWebSocket(): WebSocketHookResult {
           setGameState(prev => ({
             ...prev,
             phase: session.phase
+          }));
+        }
+        break;
+      }
+
+      case "can_create_meld": {
+        if (isDataResponse(data)) {
+          const cardDrawn = data.data.card_drawn;
+
+          // Convert and add the drawn card to player's hand
+          const newCard = {
+            suit: getSuitSymbol(
+              cardDrawn.suit),
+            number: cardDrawn.rank,
+            color: cardDrawn.color.toLowerCase() as "red" | "black"
+          };
+
+          setPlayerHand(prev => [...prev, newCard]);
+
+          setGameState(prev => ({
+            ...prev,
+            cardDrawn: cardDrawn
+          }));
+        }
+        break;
+      }
+
+      case "card_discarded": {
+        if (isSessionResponse(data)) {
+          const discardPile = data.data.session.discard_pile
+          console.log(discardPile)
+          setGameState(prev => ({
+            ...prev,
+            discardPile: discardPile
           }));
         }
         break;

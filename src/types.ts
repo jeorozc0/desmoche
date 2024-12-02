@@ -63,8 +63,9 @@ export interface GameState {
   currentTurn: string;
   phase: string;
   state: string;
-  dealer?: string;
   turnOrder?: string[];
+  cardDrawn?: CardData;
+  discardPile?: ServerCard[]
 }
 
 // Message types for game events

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { CardData } from '../types';
 import { LoginForm } from './login-form';
-import { GameTable } from './game-table';
+import GameTable from './game-table';
 import WaitingRoomDialog from './waiting-room-dialogue';
 import { getSuitName } from '../utils/card-helpers';
 
@@ -25,8 +25,6 @@ const DesmocheGame = () => {
     host,
   } = useWebSocket();
 
-  console.log(gameState.phase)
-  // Handle phase changes
   useEffect(() => {
     if (gameState.phase !== "setup") {
       setHasExchanged(false);
@@ -81,6 +79,19 @@ const DesmocheGame = () => {
     }
   };
 
+  const handleDeckClick = () => {
+    if (gameState.phase === "play" && gameState.currentTurn === playerName) {
+      sendMessage("draw_from_deck");
+    }
+  };
+
+  const handleCreateMeld = (cards: CardData[]) => {
+    if (gameState.phase === "play") {
+      const cardSelection = cards.map(card => `${card.number} of ${getSuitName(card.suit)}`);
+      sendMessage("create_meld", { card_selection: cardSelection });
+    }
+  };
+
   if (!connected) {
     return (
       <LoginForm
@@ -112,9 +123,14 @@ const DesmocheGame = () => {
               otherPlayers={gameState.players.filter(p => p.name !== playerName)}
               playerHand={playerHand}
               onCardClick={handleCardClick}
+              onDeckClick={handleDeckClick}
+              onCreateMeld={handleCreateMeld}
               phase={gameState.phase}
+              drawnCard={gameState.cardDrawn}
               removedCardIndex={removedCardIndex}
               showPlayToast={showPlayToast}
+              discardPile={gameState.discardPile}
+              currentTurn={gameState.currentTurn}
             />
 
             {showAlert && (
