@@ -5,6 +5,7 @@ import { LoginForm } from './login-form';
 import GameTable from './game-table';
 import WaitingRoomDialog from './waiting-room-dialogue';
 import { getSuitName } from '../utils/card-helpers';
+import SelectedArea from './ui/selected-area';
 
 const DesmocheGame = () => {
   const [gameId, setGameId] = useState("");
@@ -14,6 +15,8 @@ const DesmocheGame = () => {
   const [removedCardIndex, setRemovedCardIndex] = useState<number | undefined>(undefined);
   const [exchangeAnimationComplete, setExchangeAnimationComplete] = useState(false);
   const [showPlayToast, setShowPlayToast] = useState(false);
+  const [selectedCards, setSelectedCards] = useState<CardData[]>([]);
+  const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
 
   const {
     connected,
@@ -39,7 +42,6 @@ const DesmocheGame = () => {
       }, 3000);
       return () => clearTimeout(timer);
     }
-
   }, [gameState.phase]);
 
   // Reset animation state when hands are updated
@@ -64,7 +66,7 @@ const DesmocheGame = () => {
     sendMessage("toggle_ready");
   };
 
-  const handleCardClick = (card: CardData, index: number) => {
+  const handleCardSelect = (card: CardData, index: number) => {
     if (gameState.phase === "setup") {
       if (!hasExchanged) {
         setRemovedCardIndex(index);
@@ -77,6 +79,17 @@ const DesmocheGame = () => {
         setShowAlert(true);
         setTimeout(() => setShowAlert(false), 3000);
       }
+    } else if (gameState.phase === "play") {
+      if (selectedIndices.includes(index)) {
+        // Deselect the card
+        const cardIndex = selectedIndices.indexOf(index);
+        setSelectedCards(prev => prev.filter((_, i) => i !== cardIndex));
+        setSelectedIndices(prev => prev.filter((_, i) => i !== cardIndex));
+      } else {
+        // Select the card
+        setSelectedCards(prev => [...prev, card]);
+        setSelectedIndices(prev => [...prev, index]);
+      }
     }
   };
 
@@ -86,10 +99,17 @@ const DesmocheGame = () => {
     }
   };
 
+  const handleCardRemove = (index: number) => {
+    setSelectedCards(prev => prev.filter((_, i) => i !== index));
+    setSelectedIndices(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleCreateMeld = (cards: CardData[]) => {
     if (gameState.phase === "play") {
       const cardSelection = cards.map(card => `${card.number} of ${getSuitName(card.suit)}`);
       sendMessage("create_meld", { card_selection: cardSelection });
+      setSelectedCards([]);
+      setSelectedIndices([]);
     }
   };
 
@@ -106,7 +126,7 @@ const DesmocheGame = () => {
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-red-900 via-red-800 to-orange-700">
+    <div className="h-screen bg-gradient-to-br bg-green-600">
       <div className="w-full h-full flex items-center justify-center p-4">
         {gameState.state !== "game" ? (
           <WaitingRoomDialog
@@ -123,16 +143,27 @@ const DesmocheGame = () => {
               currentPlayer={playerName}
               otherPlayers={gameState.players.filter(p => p.name !== playerName)}
               playerHand={playerHand}
-              onCardClick={handleCardClick}
+              onCardClick={handleCardSelect}
               onDeckClick={handleDeckClick}
-              onCreateMeld={handleCreateMeld}
               phase={gameState.phase}
               drawnCard={gameState.cardDrawn}
               removedCardIndex={removedCardIndex}
               showPlayToast={showPlayToast}
               discardPile={gameState.discardPile}
               currentTurn={gameState.currentTurn}
+              selectedCardIndices={selectedIndices}
             />
+
+            {/* Selected Area - Fixed to bottom left corner */}
+            {gameState.phase === "play" && (
+              <div className="fixed bottom-4 left-4 w-80">
+                <SelectedArea
+                  selectedCards={selectedCards}
+                  onCardRemove={handleCardRemove}
+                  onCreateMeld={() => handleCreateMeld(selectedCards)}
+                />
+              </div>
+            )}
 
             {showAlert && (
               <div className="fixed top-4 left-1/2 transform -translate-x-1/2 

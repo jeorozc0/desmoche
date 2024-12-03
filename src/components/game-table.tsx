@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Player, CardData, ServerCard } from '../types';
 import { PlayerInfo } from './player-info';
 import FannedCards from './ui/fanned-cards';
-import SelectedArea from './ui/selected-area';
 import Card from './ui/card';
 import { Loader2 } from "lucide-react";
 import { getSuitSymbol } from '../utils/card-helpers';
@@ -13,13 +12,13 @@ interface GameTableProps {
   playerHand: CardData[];
   onCardClick: (card: CardData, index: number) => void;
   onDeckClick: () => void;
-  onCreateMeld?: (cards: CardData[]) => void;
   phase: string;
   drawnCard?: CardData;
   discardPile?: ServerCard[];
   removedCardIndex?: number;
   showPlayToast: boolean;
   currentTurn: string;
+  selectedCardIndices: number[];
 }
 
 export const GameTable: React.FC<GameTableProps> = ({
@@ -28,16 +27,13 @@ export const GameTable: React.FC<GameTableProps> = ({
   playerHand,
   onCardClick,
   onDeckClick,
-  onCreateMeld,
   phase,
   removedCardIndex,
   showPlayToast,
   currentTurn,
-  discardPile = []
+  discardPile = [],
+  selectedCardIndices
 }) => {
-  const [selectedCards, setSelectedCards] = useState<CardData[]>([]);
-  const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
-
   const positions = [
     { x: "50%", y: "20px", align: "center" }, // Top
     { x: "20px", y: "50%", align: "left" }, // Left
@@ -45,37 +41,6 @@ export const GameTable: React.FC<GameTableProps> = ({
   ];
 
   const isPlayerTurn = currentTurn === currentPlayer;
-
-  const handleCardSelect = (card: CardData, index: number) => {
-    if (phase === "play") {
-      if (selectedIndices.includes(index)) {
-        // Deselect the card
-        const cardIndex = selectedIndices.indexOf(index);
-        setSelectedCards(prev => prev.filter((_, i) => i !== cardIndex));
-        setSelectedIndices(prev => prev.filter((_, i) => i !== cardIndex));
-      } else {
-        // Select the card
-        setSelectedCards(prev => [...prev, card]);
-        setSelectedIndices(prev => [...prev, index]);
-      }
-    } else {
-      // For other phases (like setup), use the original onCardClick
-      onCardClick(card, index);
-    }
-  };
-
-  const handleCardRemove = (index: number) => {
-    setSelectedCards(prev => prev.filter((_, i) => i !== index));
-    setSelectedIndices(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleCreateMeld = () => {
-    if (selectedCards.length >= 3 && onCreateMeld) {
-      onCreateMeld(selectedCards);
-      setSelectedCards([]);
-      setSelectedIndices([]);
-    }
-  };
 
   // Get the top card of the discard pile
   const topDiscardCard = discardPile.length > 0 ? discardPile[0] : null;
@@ -186,24 +151,15 @@ export const GameTable: React.FC<GameTableProps> = ({
       <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center">
         <div className={`rounded-xl p-4 ${isPlayerTurn ? 'bg-yellow-500/20 animate-pulse' : ''}`}>
           <PlayerInfo name={currentPlayer} />
-          <div className="flex items-center mt-4 gap-4">
+          <div className="flex items-center mt-4">
             <div className="w-96 h-48">
               <FannedCards
                 cards={playerHand}
-                onCardClick={handleCardSelect}
+                onCardClick={onCardClick}
                 removedCardIndex={removedCardIndex}
-                selectedCardIndices={selectedIndices}
+                selectedCardIndices={selectedCardIndices}
               />
             </div>
-            {phase === "play" && (
-              <div className="w-80">
-                <SelectedArea
-                  selectedCards={selectedCards}
-                  onCardRemove={handleCardRemove}
-                  onCreateMeld={handleCreateMeld}
-                />
-              </div>
-            )}
           </div>
         </div>
       </div>
