@@ -73,6 +73,11 @@ export function useWebSocket(): WebSocketHookResult {
       ]);
     }
 
+    if (data.event.includes("_exception")) {
+      console.log("Not so fast!")
+      return null;
+    }
+
     switch (data.event) {
       case "player_joined": {
         if (isSessionResponse(data)) {

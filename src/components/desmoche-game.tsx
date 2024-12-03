@@ -39,6 +39,7 @@ const DesmocheGame = () => {
       }, 3000);
       return () => clearTimeout(timer);
     }
+
   }, [gameState.phase]);
 
   // Reset animation state when hands are updated
