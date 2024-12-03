@@ -34,6 +34,7 @@ export const WaitingRoomDialog: React.FC<WaitingRoomDialogProps> = ({
 
   // Count how many players are ready
   const readyCount = players.filter(p => p.isReady).length;
+  const currentPlayerReady = players.find(p => p.name === currentPlayer)?.isReady;
 
   return (
     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 
@@ -88,24 +89,24 @@ export const WaitingRoomDialog: React.FC<WaitingRoomDialogProps> = ({
 
       {/* Controls Section */}
       <div className="space-y-2">
-        {/* Ready Button for All Players */}
+        {/* Ready Button for Current Player */}
         <button
           onClick={onToggleReady}
           className={`w-full py-2 px-4 rounded transition-colors font-medium
-            ${players.find(p => p.name === currentPlayer)?.isReady
+            ${currentPlayerReady
               ? "bg-yellow-500 hover:bg-yellow-600 text-white"
               : "bg-green-600 hover:bg-green-700 text-white"}`}
         >
-          {players.find(p => p.name === currentPlayer)?.isReady
-            ? "Not Ready"
-            : "Ready"}
+          {currentPlayerReady ? "Not Ready" : "Ready"}
         </button>
 
         {/* Start Game Button (only for host) */}
         {isHost && players.length >= 2 && (
           <button
             onClick={onStartGame}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors"
+            disabled={!players.every(p => p.isReady)}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 
+                     text-white font-medium py-2 px-4 rounded transition-colors"
           >
             Start Game
           </button>

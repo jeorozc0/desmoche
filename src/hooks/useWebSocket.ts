@@ -18,6 +18,7 @@ interface SessionResponse extends BaseResponse {
 interface PlayerReadyResponse extends BaseResponse {
   data: {
     player: {
+      name: string;
       is_ready: boolean;
     };
   };
@@ -105,7 +106,7 @@ export function useWebSocket(): WebSocketHookResult {
           setGameState(prev => ({
             ...prev,
             players: prev.players.map(p =>
-              p.name === playerNameRef.current
+              p.name === playerData.name  // Use the player name from the response
                 ? { ...p, isReady: playerData.is_ready }
                 : p
             )
