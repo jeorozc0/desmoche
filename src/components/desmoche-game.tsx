@@ -1,19 +1,22 @@
-import { useState, useEffect } from 'react';
-import { useWebSocket } from '../hooks/useWebSocket';
-import { CardData } from '../types';
-import { LoginForm } from './login-form';
-import GameTable from './game-table';
-import WaitingRoomDialog from './waiting-room-dialogue';
-import { getSuitName } from '../utils/card-helpers';
-import SelectedArea from './ui/selected-area';
+import { useState, useEffect } from "react";
+import { useWebSocket } from "../hooks/useWebSocket";
+import { CardData } from "../types";
+import { LoginForm } from "./login-form";
+import GameTable from "./game-table";
+import WaitingRoomDialog from "./waiting-room-dialogue";
+import { getSuitName } from "../utils/card-helpers";
+import SelectedArea from "./ui/selected-area";
 
 const DesmocheGame = () => {
   const [gameId, setGameId] = useState("");
   const [playerName, setPlayerName] = useState("");
   const [hasExchanged, setHasExchanged] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
-  const [removedCardIndex, setRemovedCardIndex] = useState<number | undefined>(undefined);
-  const [exchangeAnimationComplete, setExchangeAnimationComplete] = useState(false);
+  const [removedCardIndex, setRemovedCardIndex] = useState<number | undefined>(
+    undefined
+  );
+  const [exchangeAnimationComplete, setExchangeAnimationComplete] =
+    useState(false);
   const [showPlayToast, setShowPlayToast] = useState(false);
   const [selectedCards, setSelectedCards] = useState<CardData[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
@@ -66,11 +69,19 @@ const DesmocheGame = () => {
     sendMessage("toggle_ready");
   };
 
+  const handleCompleteTurn = () => {
+    if (gameState.phase === "play" && gameState.currentTurn === playerName) {
+      sendMessage("complete_turn");
+    }
+  };
+
   const handleCardSelect = (card: CardData, index: number) => {
     if (gameState.phase === "setup") {
       if (!hasExchanged) {
         setRemovedCardIndex(index);
-        sendMessage("exchange_card", { card: `${card.number} of ${getSuitName(card.suit)}` });
+        sendMessage("exchange_card", {
+          card: `${card.number} of ${getSuitName(card.suit)}`,
+        });
         setTimeout(() => {
           setHasExchanged(true);
           setExchangeAnimationComplete(true);
@@ -83,12 +94,12 @@ const DesmocheGame = () => {
       if (selectedIndices.includes(index)) {
         // Deselect the card
         const cardIndex = selectedIndices.indexOf(index);
-        setSelectedCards(prev => prev.filter((_, i) => i !== cardIndex));
-        setSelectedIndices(prev => prev.filter((_, i) => i !== cardIndex));
+        setSelectedCards((prev) => prev.filter((_, i) => i !== cardIndex));
+        setSelectedIndices((prev) => prev.filter((_, i) => i !== cardIndex));
       } else {
         // Select the card
-        setSelectedCards(prev => [...prev, card]);
-        setSelectedIndices(prev => [...prev, index]);
+        setSelectedCards((prev) => [...prev, card]);
+        setSelectedIndices((prev) => [...prev, index]);
       }
     }
   };
@@ -100,13 +111,15 @@ const DesmocheGame = () => {
   };
 
   const handleCardRemove = (index: number) => {
-    setSelectedCards(prev => prev.filter((_, i) => i !== index));
-    setSelectedIndices(prev => prev.filter((_, i) => i !== index));
+    setSelectedCards((prev) => prev.filter((_, i) => i !== index));
+    setSelectedIndices((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleCreateMeld = (cards: CardData[]) => {
     if (gameState.phase === "play") {
-      const cardSelection = cards.map(card => `${card.number} of ${getSuitName(card.suit)}`);
+      const cardSelection = cards.map(
+        (card) => `${card.number} of ${getSuitName(card.suit)}`
+      );
       sendMessage("create_meld", { card_selection: cardSelection });
       setSelectedCards([]);
       setSelectedIndices([]);
@@ -141,7 +154,9 @@ const DesmocheGame = () => {
           <>
             <GameTable
               currentPlayer={playerName}
-              otherPlayers={gameState.players.filter(p => p.name !== playerName)}
+              otherPlayers={gameState.players.filter(
+                (p) => p.name !== playerName
+              )}
               playerHand={playerHand}
               onCardClick={handleCardSelect}
               onDeckClick={handleDeckClick}
@@ -154,21 +169,36 @@ const DesmocheGame = () => {
               selectedCardIndices={selectedIndices}
             />
 
-            {/* Selected Area - Fixed to bottom left corner */}
+            {/* Action Controls - Bottom Right */}
             {gameState.phase === "play" && (
-              <div className="fixed bottom-4 left-4 w-80">
-                <SelectedArea
-                  selectedCards={selectedCards}
-                  onCardRemove={handleCardRemove}
-                  onCreateMeld={() => handleCreateMeld(selectedCards)}
-                />
+              <div className="fixed bottom-4 right-4 flex flex-col gap-4">
+                {/* Complete Turn Button */}
+                <button
+                  onClick={handleCompleteTurn}
+                  disabled={gameState.currentTurn !== playerName}
+                  className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 
+                           text-white font-medium py-2 px-4 rounded transition-colors"
+                >
+                  Complete Turn
+                </button>
+
+                {/* Selected Area */}
+                <div className="w-80">
+                  <SelectedArea
+                    selectedCards={selectedCards}
+                    onCardRemove={handleCardRemove}
+                    onCreateMeld={handleCreateMeld}
+                  />
+                </div>
               </div>
             )}
 
             {showAlert && (
-              <div className="fixed top-4 left-1/2 transform -translate-x-1/2 
+              <div
+                className="fixed top-4 left-1/2 transform -translate-x-1/2 
                            bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg
-                           transition-opacity duration-300">
+                           transition-opacity duration-300"
+              >
                 You have already exchanged a card for this round!
               </div>
             )}
